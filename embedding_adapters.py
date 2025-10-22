@@ -1,291 +1,204 @@
-# embedding_adapters.py
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 import logging
-import traceback
+from abc import ABC, abstractmethod
 from typing import List
+
 import requests
 from langchain_openai import AzureOpenAIEmbeddings, OpenAIEmbeddings
 
-def ensure_openai_base_url_has_v1(url: str) -> str:
-    """
-    若用户输入的 url 不包含 '/v1'，则在末尾追加 '/v1'。
-    """
-    import re
-    url = url.strip()
-    if not url:
-        return url
-    if not re.search(r'/v\d+$', url):
-        if '/v1' not in url:
-            url = url.rstrip('/') + '/v1'
-    return url
 
-class BaseEmbeddingAdapter:
-    """
-    Embedding 接口统一基类
-    """
+class BaseEmbeddingAdapter(ABC):
+    """Embedding 适配器基类"""
+
+    @abstractmethod
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        raise NotImplementedError
+        """对一组文本进行 embedding"""
+        pass
 
-    def embed_query(self, query: str) -> List[float]:
-        raise NotImplementedError
+    @abstractmethod
+    def embed_query(self, text: str) -> List[float]:
+        """对单个查询文本进行 embedding"""
+        pass
+
 
 class OpenAIEmbeddingAdapter(BaseEmbeddingAdapter):
     """
     基于 OpenAIEmbeddings（或兼容接口）的适配器
     """
+
     def __init__(self, api_key: str, base_url: str, model_name: str):
         self._embedding = OpenAIEmbeddings(
-            openai_api_key=api_key,
-            openai_api_base=ensure_openai_base_url_has_v1(base_url),
-            model=model_name
+            model=model_name,
+            openai_api_base=base_url,
+            openai_api_key=api_key
         )
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         return self._embedding.embed_documents(texts)
 
-    def embed_query(self, query: str) -> List[float]:
-        return self._embedding.embed_query(query)
+    def embed_query(self, text: str) -> List[float]:
+        return self._embedding.embed_query(text)
+
 
 class AzureOpenAIEmbeddingAdapter(BaseEmbeddingAdapter):
     """
     基于 AzureOpenAIEmbeddings（或兼容接口）的适配器
     """
+
     def __init__(self, api_key: str, base_url: str, model_name: str):
-        import re
-        match = re.match(r'https://(.+?)/openai/deployments/(.+?)/embeddings\?api-version=(.+)', base_url)
-        if match:
-            self.azure_endpoint = f"https://{match.group(1)}"
-            self.azure_deployment = match.group(2)
-            self.api_version = match.group(3)
-        else:
-            raise ValueError("Invalid Azure OpenAI base_url format")
-        
+        # 注意：Azure OpenAI 的 base_url 通常包含部署名称，这里假设用户已正确配置
         self._embedding = AzureOpenAIEmbeddings(
-            azure_endpoint=self.azure_endpoint,
-            azure_deployment=self.azure_deployment,
-            openai_api_key=api_key,
-            api_version=self.api_version,
+            model=model_name,
+            azure_endpoint=base_url,
+            api_key=api_key
         )
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         return self._embedding.embed_documents(texts)
 
-    def embed_query(self, query: str) -> List[float]:
-        return self._embedding.embed_query(query)
+    def embed_query(self, text: str) -> List[float]:
+        return self._embedding.embed_query(text)
+
 
 class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
     """
-    其接口路径为 /api/embeddings
+    基于 Ollama 的适配器
     """
+
     def __init__(self, model_name: str, base_url: str):
-        self.model_name = model_name
-        self.base_url = base_url.rstrip("/")
+        # Ollama 的 LangChain 集成可能需要特定版本的库
+        from langchain_community.embeddings import OllamaEmbeddings
+        self._embedding = OllamaEmbeddings(model=model_name, base_url=base_url)
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        embeddings = []
-        for text in texts:
-            vec = self._embed_single(text)
-            embeddings.append(vec)
-        return embeddings
+        return self._embedding.embed_documents(texts)
 
-    def embed_query(self, query: str) -> List[float]:
-        return self._embed_single(query)
+    def embed_query(self, text: str) -> List[float]:
+        return self._embedding.embed_query(text)
 
-    def _embed_single(self, text: str) -> List[float]:
-        """
-        调用 Ollama 本地服务 /api/embeddings 接口，获取文本 embedding
-        """
-        url = self.base_url.rstrip("/")
-        if "/api/embeddings" not in url:
-            if "/api" in url:
-                url = f"{url}/embeddings"
-            else:
-                if "/v1" in url:
-                    url = url[:url.index("/v1")]
-                url = f"{url}/api/embeddings"
-
-        data = {
-            "model": self.model_name,
-            "prompt": text
-        }
-        try:
-            response = requests.post(url, json=data)
-            response.raise_for_status()
-            result = response.json()
-            if "embedding" not in result:
-                raise ValueError("No 'embedding' field in Ollama response.")
-            return result["embedding"]
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Ollama embeddings request error: {e}\n{traceback.format_exc()}")
-            return []
 
 class MLStudioEmbeddingAdapter(BaseEmbeddingAdapter):
     """
-    基于 LM Studio 的 embedding 适配器
+    基于 ML Studio（本地部署）的适配器
     """
+
     def __init__(self, api_key: str, base_url: str, model_name: str):
-        self.url = ensure_openai_base_url_has_v1(base_url)
-        if not self.url.endswith('/embeddings'):
-            self.url = f"{self.url}/embeddings"
-        
+        self.api_key = api_key
+        self.base_url = f"{base_url.rstrip('/')}/v1/embeddings"
+        self.model_name = model_name
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
-        self.model_name = model_name
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        try:
-            payload = {
-                "input": texts,
-                "model": self.model_name
-            }
-            response = requests.post(self.url, json=payload, headers=self.headers)
-            response.raise_for_status()
-            result = response.json()
-            if "data" not in result:
-                logging.error(f"Invalid response format from LM Studio API: {result}")
-                return [[]] * len(texts)
-            return [item.get("embedding", []) for item in result["data"]]
-        except requests.exceptions.RequestException as e:
-            logging.error(f"LM Studio API request failed: {str(e)}")
-            return [[]] * len(texts)
-        except (KeyError, IndexError, ValueError, TypeError) as e:
-            logging.error(f"Error parsing LM Studio API response: {str(e)}")
-            return [[]] * len(texts)
-
-    def embed_query(self, query: str) -> List[float]:
-        try:
-            payload = {
-                "input": query,
-                "model": self.model_name
-            }
-            response = requests.post(self.url, json=payload, headers=self.headers)
-            response.raise_for_status()
-            result = response.json()
-            if "data" not in result or not result["data"]:
-                logging.error(f"Invalid response format from LM Studio API: {result}")
-                return []
-            return result["data"][0].get("embedding", [])
-        except requests.exceptions.RequestException as e:
-            logging.error(f"LM Studio API request failed: {str(e)}")
-            return []
-        except (KeyError, IndexError, ValueError, TypeError) as e:
-            logging.error(f"Error parsing LM Studio API response: {str(e)}")
-            return []
-
-class GeminiEmbeddingAdapter(BaseEmbeddingAdapter):
-    """
-    基于 Google Generative AI (Gemini) 接口的 Embedding 适配器
-    使用直接 POST 请求方式，URL 示例：
-    https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=YOUR_API_KEY
-    """
-    def __init__(self, api_key: str, model_name: str, base_url: str):
-        """
-        :param api_key: 传入的 Google API Key
-        :param model_name: 这里一般是 "text-embedding-004"
-        :param base_url: e.g. https://generativelanguage.googleapis.com/v1beta/models
-        """
-        self.api_key = api_key
-        self.model_name = model_name
-        self.base_url = base_url.rstrip("/")
-
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        embeddings = []
-        for text in texts:
-            vec = self._embed_single(text)
-            embeddings.append(vec)
-        return embeddings
+        return [self._embed_single(text) for text in texts]
 
     def embed_query(self, query: str) -> List[float]:
         return self._embed_single(query)
 
     def _embed_single(self, text: str) -> List[float]:
-        """
-        直接调用 Google Generative Language API (Gemini) 接口，获取文本 embedding
-        """
-        url = f"{self.base_url}/{self.model_name}:embedContent?key={self.api_key}"
         payload = {
             "model": self.model_name,
-            "content": {
-                "parts": [
-                    {"text": text}
-                ]
-            }
+            "input": text
         }
-
         try:
-            response = requests.post(url, json=payload)
-            print(response.text)
+            response = requests.post(self.base_url, json=payload, headers=self.headers)
             response.raise_for_status()
-            result = response.json()
-            embedding_data = result.get("embedding", {})
-            return embedding_data.get("values", [])
+            data = response.json()
+            return data['data'][0]['embedding']
         except requests.exceptions.RequestException as e:
-            logging.error(f"Gemini embed_content request error: {e}\n{traceback.format_exc()}")
-            return []
-        except Exception as e:
-            logging.error(f"Gemini embed_content parse error: {e}\n{traceback.format_exc()}")
-            return []
+            logging.error(f"ML Studio API request failed: {e}")
+        except (KeyError, IndexError) as e:
+            logging.error(f"Failed to parse ML Studio API response: {e}")
+        return []
+
+
+class GeminiEmbeddingAdapter(BaseEmbeddingAdapter):
+    """
+    基于 Google Gemini 的适配器
+    """
+
+    def __init__(self, api_key: str, model_name: str, base_url: str = None):
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        self.model_name = model_name
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        import google.generativeai as genai
+        result = genai.embed_content(model=self.model_name, content=texts, task_type="retrieval_document")
+        return result['embedding']
+
+    def embed_query(self, text: str) -> List[float]:
+        import google.generativeai as genai
+        result = genai.embed_content(model=self.model_name, content=text, task_type="retrieval_query")
+        return result['embedding']
+
 
 class SiliconFlowEmbeddingAdapter(BaseEmbeddingAdapter):
     """
-    基于 SiliconFlow 的 embedding 适配器
+    基于 SiliconFlow 的适配器
     """
-    def __init__(self, api_key: str, base_url: str, model_name: str):
-        # 自动为 base_url 添加 scheme（如果缺失）
-        if not base_url.startswith("http://") and not base_url.startswith("https://"):
-            base_url = "https://" + base_url
-        self.url = base_url if base_url else "https://api.siliconflow.cn/v1/embeddings"
 
-        self.payload = {
-            "model": model_name,
-            "input": "Silicon flow embedding online: fast, affordable, and high-quality embedding services. come try it out!",
-            "encoding_format": "float"
-        }
+    def __init__(self, api_key: str, base_url: str, model_name: str):
+        self._embedding = OpenAIEmbeddings(
+            model=model_name,
+            openai_api_base=base_url,
+            openai_api_key=api_key
+        )
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return self._embedding.embed_documents(texts)
+
+    def embed_query(self, text: str) -> List[float]:
+        return self._embedding.embed_query(text)
+
+
+class DashScopeEmbeddingAdapter(BaseEmbeddingAdapter):
+    """
+    基于阿里百炼 DashScope 的适配器
+    专门处理 DashScope 的 OpenAI 兼容接口
+    """
+
+    def __init__(self, api_key: str, base_url: str, model_name: str):
+        self.api_key = api_key
+        self.base_url = f"{base_url.rstrip('/')}/embeddings"
+        self.model_name = model_name
         self.headers = {
-            "Authorization": "Bearer {api_key}".format(api_key=api_key),
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        embeddings = []
-        for text in texts:
-            try:
-                self.payload["input"] = text
-                response = requests.post(self.url, json=self.payload, headers=self.headers)
-                response.raise_for_status()
-                result = response.json()
-                if not result or "data" not in result or not result["data"]:
-                    logging.error(f"Invalid response format from SiliconFlow API: {result}")
-                    embeddings.append([])
-                    continue
-                emb = result["data"][0].get("embedding", [])
-                embeddings.append(emb)
-            except requests.exceptions.RequestException as e:
-                logging.error(f"SiliconFlow API request failed: {str(e)}")
-                embeddings.append([])
-            except (KeyError, IndexError, ValueError, TypeError) as e:
-                logging.error(f"Error parsing SiliconFlow API response: {str(e)}")
-                embeddings.append([])
-        return embeddings
+        return [self._embed_single(text) for text in texts]
 
-    def embed_query(self, query: str) -> List[float]:
+    def embed_query(self, text: str) -> List[float]:
+        return self._embed_single(text)
+
+    def _embed_single(self, text: str) -> List[float]:
+        payload = {
+            "model": self.model_name,
+            "input": text
+        }
         try:
-            self.payload["input"] = query
-            response = requests.post(self.url, json=self.payload, headers=self.headers)
+            response = requests.post(self.base_url, json=payload, headers=self.headers)
             response.raise_for_status()
-            result = response.json()
-            if not result or "data" not in result or not result["data"]:
-                logging.error(f"Invalid response format from SiliconFlow API: {result}")
-                return []
-            return result["data"][0].get("embedding", [])
+            data = response.json()
+            return data['data'][0]['embedding']
         except requests.exceptions.RequestException as e:
-            logging.error(f"SiliconFlow API request failed: {str(e)}")
-            return []
-        except (KeyError, IndexError, ValueError, TypeError) as e:
-            logging.error(f"Error parsing SiliconFlow API response: {str(e)}")
-            return []
+            logging.error(f"DashScope API request failed: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_detail = e.response.json()
+                    logging.error(f"DashScope API error detail: {error_detail}")
+                except:
+                    logging.error(f"DashScope API response text: {e.response.text}")
+        except (KeyError, IndexError) as e:
+            logging.error(f"Failed to parse DashScope API response: {e}")
+        return []
+
 
 def create_embedding_adapter(
     interface_format: str,
@@ -309,5 +222,7 @@ def create_embedding_adapter(
         return GeminiEmbeddingAdapter(api_key, model_name, base_url)
     elif fmt == "siliconflow":
         return SiliconFlowEmbeddingAdapter(api_key, base_url, model_name)
+    elif fmt == "dashscope":
+        return DashScopeEmbeddingAdapter(api_key, base_url, model_name)
     else:
         raise ValueError(f"Unknown embedding interface_format: {interface_format}")
