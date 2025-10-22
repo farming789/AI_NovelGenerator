@@ -767,10 +767,13 @@ def save_config_btn(self):
         "filepath": self.filepath_var.get(),
         "chapter_num": self.chapter_num_var.get(),
         "user_guidance": self.user_guide_text.get("0.0", "end").strip(),
-        "characters_involved": self.characters_involved_var.get(),
+        "characters_involved": self.char_inv_text.get("0.0", "end").strip(),
         "key_items": self.key_items_var.get(),
         "scene_location": self.scene_location_var.get(),
-        "time_constraint": self.time_constraint_var.get()
+        "time_constraint": self.time_constraint_var.get(),
+        "webdav_url": self.webdav_url_var.get(),
+        "webdav_username": self.webdav_username_var.get(),
+        "webdav_password": self.webdav_password_var.get()
     }
     llm_config_name = self.base_url_var.get().split("/")[2] + " " + self.model_name_var.get()
 
