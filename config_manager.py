@@ -3,6 +3,8 @@
 import json
 import os
 import threading
+import shutil
+from datetime import datetime
 from llm_adapters import create_llm_adapter
 from embedding_adapters import create_embedding_adapter
 
@@ -65,13 +67,11 @@ def create_config(config_file: str) -> dict:
             "interface_format": "OpenAI"
         }
     },
-    "other_params": {
+    "default_novel_params": {
         "topic": "",
-        "genre": "",
-        "num_chapters": 0,
-        "word_number": 0,
-        "filepath": "",
-        "chapter_num": "120",
+        "genre": "玄幻",
+        "num_chapters": 100,
+        "word_number": 3000,
         "user_guidance": "",
         "characters_involved": "",
         "key_items": "",
@@ -161,3 +161,217 @@ def test_embedding_config(api_key, base_url, interface_format, model_name, log_f
             handle_exception_func("测试Embedding配置时出错")
 
     threading.Thread(target=task, daemon=True).start()
+
+
+# =============== 小说配置管理功能 ===============
+
+def get_novels_root_dir() -> str:
+    """获取小说项目根目录路径"""
+    return os.path.join(os.getcwd(), "novels")
+
+
+def ensure_novels_dir() -> str:
+    """确保小说项目目录存在，返回目录路径"""
+    novels_dir = get_novels_root_dir()
+    os.makedirs(novels_dir, exist_ok=True)
+    return novels_dir
+
+
+def list_novel_projects() -> list:
+    """列出所有小说项目"""
+    novels_dir = ensure_novels_dir()
+    projects = []
+    
+    for item in os.listdir(novels_dir):
+        project_path = os.path.join(novels_dir, item)
+        if os.path.isdir(project_path):
+            config_file = os.path.join(project_path, "novel_config.json")
+            if os.path.exists(config_file):
+                try:
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        config = json.load(f)
+                    projects.append({
+                        "name": item,
+                        "path": project_path,
+                        "title": config.get("novel_info", {}).get("title", item),
+                        "created_at": config.get("novel_info", {}).get("created_at", ""),
+                        "last_modified": config.get("novel_info", {}).get("last_modified", "")
+                    })
+                except:
+                    # 配置文件损坏，跳过
+                    continue
+    
+    # 按最后修改时间排序
+    projects.sort(key=lambda x: x.get("last_modified", ""), reverse=True)
+    return projects
+
+
+def create_novel_project(project_name: str, global_config: dict) -> str:
+    """创建新的小说项目"""
+    novels_dir = ensure_novels_dir()
+    project_path = os.path.join(novels_dir, project_name)
+    
+    if os.path.exists(project_path):
+        raise ValueError(f"项目 '{project_name}' 已存在")
+    
+    # 创建项目目录
+    os.makedirs(project_path, exist_ok=True)
+    
+    # 创建小说配置文件
+    novel_config = {
+        "novel_info": {
+            "title": project_name,
+            "created_at": datetime.now().isoformat(),
+            "last_modified": datetime.now().isoformat()
+        },
+        "novel_params": global_config.get("default_novel_params", {}).copy(),
+        "generation_state": {
+            "current_chapter": 1,
+            "architecture_generated": False,
+            "blueprint_generated": False,
+            "last_generation_step": "none"
+        }
+    }
+    
+    # 设置默认文件路径
+    novel_config["novel_params"]["filepath"] = project_path
+    
+    save_novel_config(project_path, novel_config)
+    return project_path
+
+
+def load_novel_config(project_path: str) -> dict:
+    """加载指定项目的小说配置"""
+    config_file = os.path.join(project_path, "novel_config.json")
+    
+    if not os.path.exists(config_file):
+        # 如果配置文件不存在，创建默认配置
+        novels_dir = ensure_novels_dir()
+        global_config_file = os.path.join(os.getcwd(), "config.json")
+        global_config = load_config(global_config_file)
+        
+        novel_config = {
+            "novel_info": {
+                "title": os.path.basename(project_path),
+                "created_at": datetime.now().isoformat(),
+                "last_modified": datetime.now().isoformat()
+            },
+            "novel_params": global_config.get("default_novel_params", {}).copy(),
+            "generation_state": {
+                "current_chapter": 1,
+                "architecture_generated": False,
+                "blueprint_generated": False,
+                "last_generation_step": "none"
+            }
+        }
+        
+        # 设置默认文件路径
+        novel_config["novel_params"]["filepath"] = project_path
+        save_novel_config(project_path, novel_config)
+        return novel_config
+    
+    try:
+        with open(config_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        raise ValueError(f"无法加载小说配置: {str(e)}")
+
+
+def save_novel_config(project_path: str, novel_config: dict) -> bool:
+    """保存小说配置到指定项目"""
+    config_file = os.path.join(project_path, "novel_config.json")
+    
+    # 更新最后修改时间
+    if "novel_info" not in novel_config:
+        novel_config["novel_info"] = {}
+    novel_config["novel_info"]["last_modified"] = datetime.now().isoformat()
+    
+    try:
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(novel_config, f, ensure_ascii=False, indent=4)
+        return True
+    except Exception as e:
+        return False
+
+
+def delete_novel_project(project_name: str) -> bool:
+    """删除小说项目"""
+    novels_dir = ensure_novels_dir()
+    project_path = os.path.join(novels_dir, project_name)
+    
+    if not os.path.exists(project_path):
+        return False
+    
+    try:
+        shutil.rmtree(project_path)
+        return True
+    except Exception as e:
+        return False
+
+
+def migrate_legacy_config(global_config: dict) -> dict:
+    """迁移旧配置到新结构"""
+    if "other_params" not in global_config:
+        return global_config
+    
+    # 提取小说参数
+    other_params = global_config["other_params"]
+    
+    # 创建默认小说项目
+    project_name = "默认小说项目"
+    try:
+        project_path = create_novel_project(project_name, global_config)
+        
+        # 加载新创建的项目配置
+        novel_config = load_novel_config(project_path)
+        
+        # 迁移参数
+        novel_config["novel_params"].update({
+            "topic": other_params.get("topic", ""),
+            "genre": other_params.get("genre", "玄幻"),
+            "num_chapters": other_params.get("num_chapters", 100),
+            "word_number": other_params.get("word_number", 3000),
+            "user_guidance": other_params.get("user_guidance", ""),
+            "characters_involved": other_params.get("characters_involved", ""),
+            "key_items": other_params.get("key_items", ""),
+            "scene_location": other_params.get("scene_location", ""),
+            "time_constraint": other_params.get("time_constraint", ""),
+            "filepath": other_params.get("filepath", project_path)
+        })
+        
+        # 迁移生成状态
+        chapter_num = other_params.get("chapter_num", "1")
+        try:
+            novel_config["generation_state"]["current_chapter"] = int(chapter_num)
+        except:
+            novel_config["generation_state"]["current_chapter"] = 1
+        
+        # 保存迁移后的配置
+        save_novel_config(project_path, novel_config)
+        
+        # 从全局配置中移除 other_params
+        new_global_config = global_config.copy()
+        del new_global_config["other_params"]
+        
+        return new_global_config
+        
+    except Exception as e:
+        print(f"迁移配置时出错: {str(e)}")
+        return global_config
+
+
+def get_current_novel_config(project_path: str) -> dict:
+    """获取当前小说项目的配置，如果不存在则创建默认项目"""
+    if not project_path or not os.path.exists(project_path):
+        # 如果没有指定项目路径，使用第一个可用项目
+        projects = list_novel_projects()
+        if projects:
+            project_path = projects[0]["path"]
+        else:
+            # 创建默认项目
+            novels_dir = ensure_novels_dir()
+            global_config_file = os.path.join(os.getcwd(), "config.json")
+            global_config = load_config(global_config_file)
+            project_path = create_novel_project("默认小说项目", global_config)
+    
+    return load_novel_config(project_path)

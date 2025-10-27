@@ -10,7 +10,11 @@ from tkinter import filedialog, messagebox
 from .role_library import RoleLibrary
 from llm_adapters import create_llm_adapter
 
-from config_manager import load_config, save_config, test_llm_config, test_embedding_config
+from config_manager import (
+    load_config, save_config, test_llm_config, test_embedding_config,
+    list_novel_projects, create_novel_project, load_novel_config, save_novel_config,
+    get_current_novel_config, migrate_legacy_config
+)
 from utils import read_file, save_string_to_txt, clear_file_content
 from tooltips import tooltips
 
@@ -54,6 +58,17 @@ class NovelGeneratorGUI:
         # --------------- 配置文件路径 ---------------
         self.config_file = "config.json"
         self.loaded_config = load_config(self.config_file)
+        
+        # --------------- 小说项目管理 ---------------
+        self.current_novel_project = None
+        self.current_novel_config = None
+        
+        # 检查是否需要迁移配置
+        if "other_params" in self.loaded_config:
+            self.migrate_legacy_config()
+        
+        # 初始化当前小说项目（在UI创建之后）
+        # self.init_current_novel_project()
 
         if self.loaded_config:
             last_llm = next(iter(self.loaded_config["llm_configs"].values())).get("interface_format", "OpenAI")
@@ -133,24 +148,26 @@ class NovelGeneratorGUI:
 
 
         # -- 小说参数相关 --
-        if self.loaded_config and "other_params" in self.loaded_config:
-            op = self.loaded_config["other_params"]
+        if self.current_novel_config and "novel_params" in self.current_novel_config:
+            op = self.current_novel_config["novel_params"]
             self.topic_default = op.get("topic", "")
             self.genre_var = ctk.StringVar(value=op.get("genre", "玄幻"))
             self.num_chapters_var = ctk.StringVar(value=str(op.get("num_chapters", 10)))
             self.word_number_var = ctk.StringVar(value=str(op.get("word_number", 3000)))
             self.filepath_var = ctk.StringVar(value=op.get("filepath", ""))
-            self.chapter_num_var = ctk.StringVar(value=str(op.get("chapter_num", "1")))
+            self.chapter_num_var = ctk.StringVar(value=str(self.current_novel_config.get("generation_state", {}).get("current_chapter", 1)))
             self.characters_involved_var = ctk.StringVar(value=op.get("characters_involved", ""))
             self.key_items_var = ctk.StringVar(value=op.get("key_items", ""))
             self.scene_location_var = ctk.StringVar(value=op.get("scene_location", ""))
             self.time_constraint_var = ctk.StringVar(value=op.get("time_constraint", ""))
             self.user_guidance_default = op.get("user_guidance", "")
-            self.webdav_url_var = ctk.StringVar(value=op.get("webdav_url", ""))
-            self.webdav_username_var = ctk.StringVar(value=op.get("webdav_username", ""))
-            self.webdav_password_var = ctk.StringVar(value=op.get("webdav_password", ""))
-
+            
+            # WebDAV相关变量
+            self.webdav_url_var = ctk.StringVar(value="")
+            self.webdav_username_var = ctk.StringVar(value="")
+            self.webdav_password_var = ctk.StringVar(value="")
         else:
+            # 使用默认值
             self.topic_default = ""
             self.genre_var = ctk.StringVar(value="玄幻")
             self.num_chapters_var = ctk.StringVar(value="10")
@@ -162,6 +179,11 @@ class NovelGeneratorGUI:
             self.scene_location_var = ctk.StringVar(value="")
             self.time_constraint_var = ctk.StringVar(value="")
             self.user_guidance_default = ""
+            
+            # WebDAV相关变量
+            self.webdav_url_var = ctk.StringVar(value="")
+            self.webdav_username_var = ctk.StringVar(value="")
+            self.webdav_password_var = ctk.StringVar(value="")
 
         # --------------- 整体Tab布局 ---------------
         self.tabview = ctk.CTkTabview(self.master)
@@ -169,7 +191,6 @@ class NovelGeneratorGUI:
 
         # 创建各个标签页
         build_main_tab(self)
-        build_config_tabview(self)
         build_novel_params_area(self, start_row=1)
         build_optional_buttons_area(self, start_row=2)
         build_setting_tab(self)
@@ -177,7 +198,11 @@ class NovelGeneratorGUI:
         build_character_tab(self)
         build_summary_tab(self)
         build_chapters_tab(self)
+        build_config_tabview(self)  # 移到章节管理之后，作为独立的"软件设置"标签页
         build_other_settings_tab(self)
+        
+        # UI创建完成后，初始化小说项目
+        self.init_current_novel_project()
 
 
     # ----------------- 通用辅助函数 -----------------
@@ -407,3 +432,333 @@ class NovelGeneratorGUI:
     test_llm_config = test_llm_config
     test_embedding_config = test_embedding_config
     browse_folder = browse_folder
+    
+    # =============== 小说项目管理方法 ===============
+    
+    def migrate_legacy_config(self):
+        """迁移旧配置到新结构"""
+        try:
+            self.log("检测到旧配置结构，正在迁移...")
+            self.loaded_config = migrate_legacy_config(self.loaded_config)
+            save_config(self.loaded_config, self.config_file)
+            self.log("✅ 配置迁移完成")
+        except Exception as e:
+            self.log(f"❌ 配置迁移失败: {str(e)}")
+            self.handle_exception("配置迁移")
+    
+    def init_current_novel_project(self):
+        """初始化当前小说项目"""
+        try:
+            projects = list_novel_projects()
+            if projects:
+                # 使用第一个项目（最新的）
+                self.current_novel_project = projects[0]["path"]
+                self.current_novel_config = load_novel_config(self.current_novel_project)
+                self.log(f"✅ 已加载小说项目: {projects[0]['title']}")
+            else:
+                # 创建默认项目
+                self.current_novel_project = create_novel_project("默认小说项目", self.loaded_config)
+                self.current_novel_config = load_novel_config(self.current_novel_project)
+                self.log("✅ 已创建默认小说项目")
+        except Exception as e:
+            self.log(f"❌ 初始化小说项目失败: {str(e)}")
+            self.handle_exception("初始化小说项目")
+    
+    def show_novel_project_manager(self):
+        """显示小说项目管理窗口"""
+        manager_window = ctk.CTkToplevel(self.master)
+        manager_window.title("小说项目管理")
+        manager_window.geometry("600x500")
+        manager_window.transient(self.master)
+        manager_window.grab_set()
+        
+        # 主容器
+        main_frame = ctk.CTkFrame(manager_window)
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # 标题
+        title_label = ctk.CTkLabel(main_frame, text="小说项目管理", 
+                                  font=("Microsoft YaHei", 16, "bold"))
+        title_label.pack(pady=(10, 20))
+        
+        # 项目列表
+        projects_frame = ctk.CTkFrame(main_frame)
+        projects_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        projects_label = ctk.CTkLabel(projects_frame, text="现有项目:", 
+                                     font=("Microsoft YaHei", 12, "bold"))
+        projects_label.pack(pady=(10, 5))
+        
+        # 项目列表
+        self.projects_listbox = tk.Listbox(projects_frame, height=8)
+        self.projects_listbox.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        # 刷新项目列表
+        self.refresh_projects_list()
+        
+        # 按钮框架
+        btn_frame = ctk.CTkFrame(main_frame)
+        btn_frame.pack(fill="x", pady=10)
+        
+        # 按钮
+        btn_new = ctk.CTkButton(btn_frame, text="新建项目", command=self.create_new_project)
+        btn_new.pack(side="left", padx=5)
+        
+        btn_switch = ctk.CTkButton(btn_frame, text="切换项目", command=self.switch_project)
+        btn_switch.pack(side="left", padx=5)
+        
+        btn_delete = ctk.CTkButton(btn_frame, text="删除项目", command=self.delete_project)
+        btn_delete.pack(side="left", padx=5)
+        
+        btn_refresh = ctk.CTkButton(btn_frame, text="刷新", command=self.refresh_projects_list)
+        btn_refresh.pack(side="left", padx=5)
+        
+        btn_close = ctk.CTkButton(btn_frame, text="关闭", command=manager_window.destroy)
+        btn_close.pack(side="right", padx=5)
+    
+    def refresh_projects_list(self):
+        """刷新项目列表"""
+        try:
+            self.projects_listbox.delete(0, tk.END)
+            projects = list_novel_projects()
+            
+            for project in projects:
+                display_text = f"{project['title']} ({project['name']})"
+                if project['path'] == self.current_novel_project:
+                    display_text = f"★ {display_text}"
+                self.projects_listbox.insert(tk.END, display_text)
+                
+        except Exception as e:
+            self.log(f"❌ 刷新项目列表失败: {str(e)}")
+    
+    def create_new_project(self):
+        """创建新项目"""
+        dialog = ctk.CTkInputDialog(text="请输入新项目名称:", title="新建小说项目")
+        project_name = dialog.get_input()
+        
+        if project_name and project_name.strip():
+            try:
+                project_path = create_novel_project(project_name.strip(), self.loaded_config)
+                self.log(f"✅ 已创建新项目: {project_name}")
+                self.refresh_projects_list()
+            except Exception as e:
+                self.log(f"❌ 创建项目失败: {str(e)}")
+                messagebox.showerror("错误", f"创建项目失败: {str(e)}")
+    
+    def switch_project(self):
+        """切换项目"""
+        selection = self.projects_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("警告", "请先选择一个项目")
+            return
+        
+        try:
+            projects = list_novel_projects()
+            if selection[0] < len(projects):
+                selected_project = projects[selection[0]]
+                
+                # 保存当前项目配置
+                self.save_current_novel_config()
+                
+                # 切换到新项目
+                self.current_novel_project = selected_project["path"]
+                self.current_novel_config = load_novel_config(self.current_novel_project)
+                
+                # 更新UI
+                self.update_ui_from_novel_config()
+                
+                self.log(f"✅ 已切换到项目: {selected_project['title']}")
+                self.refresh_projects_list()
+                
+        except Exception as e:
+            self.log(f"❌ 切换项目失败: {str(e)}")
+            messagebox.showerror("错误", f"切换项目失败: {str(e)}")
+    
+    def delete_project(self):
+        """删除项目"""
+        selection = self.projects_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("警告", "请先选择一个项目")
+            return
+        
+        try:
+            projects = list_novel_projects()
+            if selection[0] < len(projects):
+                selected_project = projects[selection[0]]
+                
+                # 确认删除
+                if messagebox.askyesno("确认删除", 
+                                     f"确定要删除项目 '{selected_project['title']}' 吗？\n"
+                                     f"此操作将删除所有相关文件，无法恢复！"):
+                    
+                    # 如果删除的是当前项目，需要切换到其他项目
+                    if selected_project["path"] == self.current_novel_project:
+                        remaining_projects = [p for p in projects if p["path"] != selected_project["path"]]
+                        if remaining_projects:
+                            self.current_novel_project = remaining_projects[0]["path"]
+                            self.current_novel_config = load_novel_config(self.current_novel_project)
+                            self.update_ui_from_novel_config()
+                        else:
+                            self.current_novel_project = None
+                            self.current_novel_config = None
+                    
+                    # 删除项目
+                    from config_manager import delete_novel_project
+                    if delete_novel_project(selected_project["name"]):
+                        self.log(f"✅ 已删除项目: {selected_project['title']}")
+                        self.refresh_projects_list()
+                    else:
+                        self.log(f"❌ 删除项目失败")
+                        
+        except Exception as e:
+            self.log(f"❌ 删除项目失败: {str(e)}")
+            messagebox.showerror("错误", f"删除项目失败: {str(e)}")
+    
+    def save_current_novel_config(self):
+        """保存当前小说配置"""
+        if not self.current_novel_config or not self.current_novel_project:
+            messagebox.showwarning("警告", "当前没有加载任何小说项目")
+            return
+        
+        try:
+            # 从UI读取可编辑控件的值
+            # 主题与内容指导来自文本框
+            try:
+                topic_text = self.topic_text.get("0.0", "end").strip()
+            except Exception:
+                topic_text = self.topic_default
+            try:
+                user_guidance_text = self.user_guide_text.get("0.0", "end").strip()
+            except Exception:
+                user_guidance_text = self.user_guidance_default
+            # 核心人物来自多行文本
+            try:
+                characters_involved_text = self.char_inv_text.get("0.0", "end").strip()
+            except Exception:
+                characters_involved_text = self.characters_involved_var.get()
+
+            # 更新小说参数
+            self.current_novel_config["novel_params"].update({
+                "topic": topic_text,
+                "genre": self.genre_var.get(),
+                "num_chapters": int(self.num_chapters_var.get() or 0),
+                "word_number": int(self.word_number_var.get() or 0),
+                "filepath": self.filepath_var.get(),
+                "user_guidance": user_guidance_text,
+                "characters_involved": characters_involved_text,
+                "key_items": self.key_items_var.get(),
+                "scene_location": self.scene_location_var.get(),
+                "time_constraint": self.time_constraint_var.get()
+            })
+            
+            # 同步内存中的默认文本变量（用于后续界面显示）
+            self.topic_default = topic_text
+            self.user_guidance_default = user_guidance_text
+            self.characters_involved_var.set(characters_involved_text)
+            
+            # 更新生成状态
+            self.current_novel_config["generation_state"]["current_chapter"] = int(self.chapter_num_var.get() or 1)
+            
+            # 保存配置
+            if save_novel_config(self.current_novel_project, self.current_novel_config):
+                self.log("✅ 项目配置已保存")
+            else:
+                self.log("❌ 项目配置保存失败")
+            
+        except Exception as e:
+            self.log(f"❌ 保存小说配置失败: {str(e)}")
+    
+    def update_ui_from_novel_config(self):
+        """从小说配置更新UI"""
+        if not self.current_novel_config:
+            return
+        
+        try:
+            # 先清空所有控件
+            self.clear_ui_controls()
+            
+            op = self.current_novel_config.get("novel_params", {})
+            
+            # 更新变量
+            self.topic_default = op.get("topic", "")
+            self.genre_var.set(op.get("genre", "玄幻"))
+            self.num_chapters_var.set(str(op.get("num_chapters", 10)))
+            self.word_number_var.set(str(op.get("word_number", 3000)))
+            self.filepath_var.set(op.get("filepath", ""))
+            self.chapter_num_var.set(str(self.current_novel_config.get("generation_state", {}).get("current_chapter", 1)))
+            self.characters_involved_var.set(op.get("characters_involved", ""))
+            self.key_items_var.set(op.get("key_items", ""))
+            self.scene_location_var.set(op.get("scene_location", ""))
+            self.time_constraint_var.set(op.get("time_constraint", ""))
+            self.user_guidance_default = op.get("user_guidance", "")
+            
+            # 更新文本框控件
+            self.update_text_widgets()
+            
+            # 更新窗口标题
+            project_title = self.current_novel_config.get("novel_info", {}).get("title", "未知项目")
+            self.master.title(f"AI小说生成器 - {project_title}")
+            
+        except Exception as e:
+            self.log(f"❌ 更新UI失败: {str(e)}")
+    
+    def clear_ui_controls(self):
+        """清空所有UI控件"""
+        try:
+            # 清空StringVar变量
+            self.genre_var.set("")
+            self.num_chapters_var.set("")
+            self.word_number_var.set("")
+            self.filepath_var.set("")
+            self.chapter_num_var.set("")
+            self.characters_involved_var.set("")
+            self.key_items_var.set("")
+            self.scene_location_var.set("")
+            self.time_constraint_var.set("")
+            
+            # 清空文本框（如果存在）
+            if hasattr(self, 'topic_text'):
+                self.topic_text.delete("0.0", "end")
+            if hasattr(self, 'user_guide_text'):
+                self.user_guide_text.delete("0.0", "end")
+            if hasattr(self, 'char_inv_text'):
+                self.char_inv_text.delete("0.0", "end")
+            if hasattr(self, 'novel_architecture_text'):
+                self.novel_architecture_text.delete("0.0", "end")
+            if hasattr(self, 'chapter_blueprint_text'):
+                self.chapter_blueprint_text.delete("0.0", "end")
+            if hasattr(self, 'character_state_text'):
+                self.character_state_text.delete("0.0", "end")
+            if hasattr(self, 'global_summary_text'):
+                self.global_summary_text.delete("0.0", "end")
+            if hasattr(self, 'chapter_result'):
+                self.chapter_result.delete("0.0", "end")
+            
+            # 清空章节列表
+            if hasattr(self, 'chapters_listbox'):
+                self.chapters_listbox.delete(0, "end")
+                
+        except Exception as e:
+            self.log(f"❌ 清空UI控件失败: {str(e)}")
+    
+    def update_text_widgets(self):
+        """更新文本框控件内容"""
+        try:
+            # 更新主题文本框
+            if hasattr(self, 'topic_text'):
+                self.topic_text.insert("0.0", self.topic_default)
+            
+            # 更新用户指导文本框
+            if hasattr(self, 'user_guide_text'):
+                self.user_guide_text.insert("0.0", self.user_guidance_default)
+            
+            # 更新核心人物文本框
+            if hasattr(self, 'char_inv_text'):
+                self.char_inv_text.insert("0.0", self.characters_involved_var.get())
+            
+            # 刷新章节列表
+            if hasattr(self, 'refresh_chapters_list'):
+                self.refresh_chapters_list()
+                
+        except Exception as e:
+            self.log(f"❌ 更新文本控件失败: {str(e)}")

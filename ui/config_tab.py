@@ -38,25 +38,27 @@ def create_label_with_help(self, parent, label_text, tooltip_key, row, column,
 
 def build_config_tabview(self):
     """
-    创建包含 LLM Model settings 和 Embedding settings 的选项卡。
+    创建独立的"软件设置"标签页，包含 LLM Model settings、Embedding settings、配置选择和代理设置。
     """
-    self.config_tabview = ctk.CTkTabview(self.config_frame)
-    self.config_tabview.grid(row=0, column=0, sticky="we", padx=5, pady=5)
+    # 创建独立的软件设置标签页
+    self.software_settings_tab = self.tabview.add("软件设置")
+    
+    # 创建内部标签页容器
+    self.config_tabview = ctk.CTkTabview(self.software_settings_tab)
+    self.config_tabview.pack(fill="both", expand=True, padx=10, pady=10)
 
     self.ai_config_tab = self.config_tabview.add("LLM模型设置")
     self.embeddings_config_tab = self.config_tabview.add("嵌入模型设置")
     self.config_choose = self.config_tabview.add("配置选择")
+    self.proxy_config_tab = self.config_tabview.add("代理设置")
 
-    # PenBo 增加代理功能支持
-    self.proxy_setting_tab = self.config_tabview.add("代理设置")
+    # 构建各个子标签页
 
 
     build_ai_config_tab(self)
     build_embeddings_config_tab(self)
     build_config_choose_tab(self)
-
-    # PenBo 增加代理功能支持
-    build_proxy_setting_tab(self)
+    build_proxy_config_tab(self)
 
 def build_ai_config_tab(self):
     def refresh_config_dropdown():
@@ -616,22 +618,22 @@ def build_config_choose_tab(self):
 
 
 # PenBo 增加代理功能支持
-def build_proxy_setting_tab(self):
+def build_proxy_config_tab(self):
     # 代理设置标签页布局
     for i in range(5):
-        self.proxy_setting_tab.grid_rowconfigure(i, weight=0)
-    self.proxy_setting_tab.grid_columnconfigure(0, weight=0)
-    self.proxy_setting_tab.grid_columnconfigure(1, weight=1)
+        self.proxy_config_tab.grid_rowconfigure(i, weight=0)
+    self.proxy_config_tab.grid_columnconfigure(0, weight=0)
+    self.proxy_config_tab.grid_columnconfigure(1, weight=1)
 
     # 从配置文件加载代理设置
     config_data = load_config(self.config_file)
     proxy_setting = config_data.get("proxy_setting", {})
     
     # 代理启用开关
-    create_label_with_help(self, self.proxy_setting_tab, "启用代理:", "proxy_enabled", 0, 0)
+    create_label_with_help(self, self.proxy_config_tab, "启用代理:", "proxy_enabled", 0, 0)
     self.proxy_enabled_var = ctk.BooleanVar(value=proxy_setting.get("enabled", False))
     proxy_enabled_switch = ctk.CTkSwitch(
-        self.proxy_setting_tab,
+        self.proxy_config_tab,
         text="",
         variable=self.proxy_enabled_var,
         onvalue=True,
@@ -641,20 +643,20 @@ def build_proxy_setting_tab(self):
     proxy_enabled_switch.grid(row=0, column=1, padx=5, pady=5, sticky="w")
 
     # 地址输入框
-    create_label_with_help(self, self.proxy_setting_tab, "地址:", "proxy_address", 1, 0)
+    create_label_with_help(self, self.proxy_config_tab, "地址:", "proxy_address", 1, 0)
     self.proxy_address_var = ctk.StringVar(value=proxy_setting.get("proxy_url", "127.0.0.1"))
     proxy_address_entry = ctk.CTkEntry(
-        self.proxy_setting_tab,
+        self.proxy_config_tab,
         textvariable=self.proxy_address_var,
         font=("Microsoft YaHei", 12)
     )
     proxy_address_entry.grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
 
     # 端口输入框
-    create_label_with_help(self, self.proxy_setting_tab, "端口:", "proxy_port", 2, 0)
+    create_label_with_help(self, self.proxy_config_tab, "端口:", "proxy_port", 2, 0)
     self.proxy_port_var = ctk.StringVar(value=proxy_setting.get("proxy_port", "10809"))
     proxy_port_entry = ctk.CTkEntry(
-        self.proxy_setting_tab,
+        self.proxy_config_tab,
         textvariable=self.proxy_port_var,
         font=("Microsoft YaHei", 12)
     )
@@ -687,7 +689,7 @@ def build_proxy_setting_tab(self):
 
     # 添加保存按钮
     save_btn = ctk.CTkButton(
-        self.proxy_setting_tab,
+        self.proxy_config_tab,
         text="保存代理设置",
         command=save_proxy_setting,
         font=("Microsoft YaHei", 12)

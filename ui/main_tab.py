@@ -120,4 +120,35 @@ def build_right_layout(self):
     self.config_frame = ctk.CTkFrame(self.right_frame, corner_radius=10, border_width=2, border_color="gray")
     self.config_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
     self.config_frame.columnconfigure(0, weight=1)
-    # 其余部分将在 config_tab.py 与 novel_params_tab.py 中构建
+    
+    # 项目管理按钮
+    project_btn_frame = ctk.CTkFrame(self.config_frame)
+    project_btn_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+    project_btn_frame.columnconfigure((0, 1), weight=1)
+    
+    self.btn_project_manager = ctk.CTkButton(
+        project_btn_frame,
+        text="📁 项目管理",
+        command=self.show_novel_project_manager,
+        font=("Microsoft YaHei", 12),
+        fg_color=("gray70", "gray30"),
+        hover_color=("gray60", "gray40")
+    )
+    self.btn_project_manager.grid(row=0, column=0, padx=5, pady=2, sticky="ew")
+    
+    self.btn_save_project_config = ctk.CTkButton(
+        project_btn_frame,
+        text="💾 保存配置",
+        command=self.save_current_novel_config,
+        font=("Microsoft YaHei", 12),
+        fg_color=("green", "darkgreen"),
+        hover_color=("darkgreen", "green")
+    )
+    self.btn_save_project_config.grid(row=0, column=1, padx=5, pady=2, sticky="ew")
+    
+    # 小说参数设置区域
+    self.novel_params_frame = ctk.CTkFrame(self.right_frame, corner_radius=10, border_width=2, border_color="gray")
+    self.novel_params_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+    self.novel_params_frame.columnconfigure(0, weight=1)
+    
+    # 其余部分将在 novel_params_tab.py 中构建
