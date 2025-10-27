@@ -61,6 +61,8 @@
      ```
    - 安装项目依赖：
      ```bash
+     conda create -n AI_NovelGenerator python==3.12
+     conda activate AI_NovelGenerator
      pip install -r requirements.txt
      ```
    - 安装完成后，运行主程序：
