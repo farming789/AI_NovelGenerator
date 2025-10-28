@@ -101,6 +101,7 @@ def generate_chapter_blueprint_ui(self):
 
 
             user_guidance = self.user_guide_text.get("0.0", "end").strip()  # 新增获取用户指导
+            writing_style = self.writing_style_var.get()  # 新增获取写作风格
 
             self.safe_log("开始生成章节蓝图...")
             Chapter_blueprint_generate(
@@ -113,7 +114,8 @@ def generate_chapter_blueprint_ui(self):
                 temperature=temperature,
                 max_tokens=max_tokens,
                 timeout=timeout_val,
-                user_guidance=user_guidance  # 新增参数
+                user_guidance=user_guidance,  # 新增参数
+                writing_style=writing_style  # 新增参数
             )
             self.safe_log("✅ 章节蓝图生成完成。请在 'Chapter Blueprint' 标签页查看或编辑。")
         except Exception:

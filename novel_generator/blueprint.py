@@ -55,6 +55,7 @@ def Chapter_blueprint_generate(
     filepath: str,
     number_of_chapters: int,
     user_guidance: str = "",  # 新增参数
+    writing_style: str = "",  # 新增参数
     temperature: float = 0.7,
     max_tokens: int = 4096,
     timeout: int = 600
@@ -114,7 +115,8 @@ def Chapter_blueprint_generate(
                 number_of_chapters=number_of_chapters,
                 n=current_start,
                 m=current_end,
-                user_guidance=user_guidance  # 新增参数
+                user_guidance=user_guidance,  # 新增参数
+                writing_style=writing_style  # 新增参数
             )
             logging.info(f"Generating chapters [{current_start}..{current_end}] in a chunk...")
             chunk_result = invoke_with_cleaning(llm_adapter, chunk_prompt)
@@ -135,7 +137,8 @@ def Chapter_blueprint_generate(
         prompt = chapter_blueprint_prompt.format(
             novel_architecture=architecture_text,
             number_of_chapters=number_of_chapters,
-            user_guidance=user_guidance  # 新增参数
+            user_guidance=user_guidance,  # 新增参数
+            writing_style=writing_style  # 新增参数
         )
         blueprint_text = invoke_with_cleaning(llm_adapter, prompt)
         if not blueprint_text.strip():
@@ -159,7 +162,8 @@ def Chapter_blueprint_generate(
             number_of_chapters=number_of_chapters,
             n=current_start,
             m=current_end,
-            user_guidance=user_guidance  # 新增参数
+            user_guidance=user_guidance,  # 新增参数
+            writing_style=writing_style  # 新增参数
         )
         logging.info(f"Generating chapters [{current_start}..{current_end}] in a chunk...")
         chunk_result = invoke_with_cleaning(llm_adapter, chunk_prompt)

@@ -63,12 +63,7 @@ class NovelGeneratorGUI:
         self.current_novel_project = None
         self.current_novel_config = None
         
-        # 检查是否需要迁移配置
-        if "other_params" in self.loaded_config:
-            self.migrate_legacy_config()
-        
-        # 初始化当前小说项目（在UI创建之后）
-        # self.init_current_novel_project()
+        # 配置迁移将在UI创建后进行
 
         if self.loaded_config:
             last_llm = next(iter(self.loaded_config["llm_configs"].values())).get("interface_format", "OpenAI")
@@ -160,6 +155,7 @@ class NovelGeneratorGUI:
             self.key_items_var = ctk.StringVar(value=op.get("key_items", ""))
             self.scene_location_var = ctk.StringVar(value=op.get("scene_location", ""))
             self.time_constraint_var = ctk.StringVar(value=op.get("time_constraint", ""))
+            self.writing_style_var = ctk.StringVar(value=op.get("writing_style", ""))
             self.user_guidance_default = op.get("user_guidance", "")
             
             # WebDAV相关变量
@@ -178,6 +174,7 @@ class NovelGeneratorGUI:
             self.key_items_var = ctk.StringVar(value="")
             self.scene_location_var = ctk.StringVar(value="")
             self.time_constraint_var = ctk.StringVar(value="")
+            self.writing_style_var = ctk.StringVar(value="")
             self.user_guidance_default = ""
             
             # WebDAV相关变量
@@ -201,7 +198,10 @@ class NovelGeneratorGUI:
         build_config_tabview(self)  # 移到章节管理之后，作为独立的"软件设置"标签页
         build_other_settings_tab(self)
         
-        # UI创建完成后，初始化小说项目
+        # UI创建完成后，先进行配置迁移，然后初始化小说项目
+        if "other_params" in self.loaded_config:
+            self.migrate_legacy_config()
+        
         self.init_current_novel_project()
 
 
@@ -644,6 +644,7 @@ class NovelGeneratorGUI:
                 "num_chapters": int(self.num_chapters_var.get() or 0),
                 "word_number": int(self.word_number_var.get() or 0),
                 "filepath": self.filepath_var.get(),
+                "writing_style": self.writing_style_var.get(),
                 "user_guidance": user_guidance_text,
                 "characters_involved": characters_involved_text,
                 "key_items": self.key_items_var.get(),
@@ -690,6 +691,7 @@ class NovelGeneratorGUI:
             self.key_items_var.set(op.get("key_items", ""))
             self.scene_location_var.set(op.get("scene_location", ""))
             self.time_constraint_var.set(op.get("time_constraint", ""))
+            self.writing_style_var.set(op.get("writing_style", ""))
             self.user_guidance_default = op.get("user_guidance", "")
             
             # 更新文本框控件
@@ -715,6 +717,7 @@ class NovelGeneratorGUI:
             self.key_items_var.set("")
             self.scene_location_var.set("")
             self.time_constraint_var.set("")
+            self.writing_style_var.set("")
             
             # 清空文本框（如果存在）
             if hasattr(self, 'topic_text'):

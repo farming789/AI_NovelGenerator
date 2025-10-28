@@ -64,8 +64,14 @@ def build_novel_params_area(self, start_row=1):
     if hasattr(self, 'user_guidance_default') and self.user_guidance_default:
         self.user_guide_text.insert("0.0", self.user_guidance_default)
 
-    # 7) 可选元素：核心人物/关键道具/空间坐标/时间压力
-    row_idx = 6
+    # 7) 写作风格
+    row_writing_style = 6
+    create_label_with_help_for_novel_params(self, parent=self.params_frame, label_text="写作风格:", tooltip_key="writing_style", row=row_writing_style, column=0, font=("Microsoft YaHei", 12))
+    writing_style_entry = ctk.CTkEntry(self.params_frame, textvariable=self.writing_style_var, font=("Microsoft YaHei", 12))
+    writing_style_entry.grid(row=row_writing_style, column=1, padx=5, pady=5, sticky="ew")
+
+    # 8) 可选元素：核心人物/关键道具/空间坐标/时间压力
+    row_idx = 7
     create_label_with_help_for_novel_params(self, parent=self.params_frame, label_text="核心人物:", tooltip_key="characters_involved", row=row_idx, column=0, font=("Microsoft YaHei", 12))
     
     # 核心人物输入框+按钮容器

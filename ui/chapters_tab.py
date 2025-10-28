@@ -58,7 +58,7 @@ def refresh_chapters_list(self):
     filepath = self.filepath_var.get().strip()
     chapters_dir = os.path.join(filepath, "chapters")
     if not os.path.exists(chapters_dir):
-        self.safe_log("尚未找到 chapters 文件夹，请先生成章节或检查保存路径。")
+        # 对于新项目，chapters文件夹不存在是正常的，不需要显示错误信息
         self.chapter_select_menu.configure(values=[])
         return
 
