@@ -115,7 +115,15 @@ def generate_chapter_blueprint_ui(self):
                 max_tokens=max_tokens,
                 timeout=timeout_val,
                 user_guidance=user_guidance,  # 新增参数
-                writing_style=writing_style  # 新增参数
+                writing_style=writing_style,  # 新增参数
+                narrative_paradigm=self.narrative_paradigm_var.get().strip(),
+                hybrid_genre=self.hybrid_genre_var.get().strip(),
+                style_profile=self.style_profile_var.get().strip(),
+                perspective_matrix=self.perspective_matrix_var.get().strip(),
+                motif_budget=self.motif_budget_var.get().strip(),
+                cluster_strategy="波谷后峰值补偿" if not hasattr(self, 'cluster_strategy_var') else getattr(self.cluster_strategy_var, 'get', lambda: "")().strip(),
+                seed=self.seed_var.get().strip(),
+                variation_factor=self.variation_factor_var.get().strip()
             )
             self.safe_log("✅ 章节蓝图生成完成。请在 'Chapter Blueprint' 标签页查看或编辑。")
         except Exception:
@@ -161,6 +169,7 @@ def generate_chapter_draft_ui(self):
             self.safe_log(f"生成第{chap_num}章草稿：准备生成请求提示词...")
 
             # 调用新添加的 build_chapter_prompt 函数构造初始提示词
+            # 注入可选的多样化参数（作为后续格式化的占位符存在于 prompt_definitions 中）
             prompt_text = build_chapter_prompt(
                 api_key=api_key,
                 base_url=base_url,
@@ -181,7 +190,16 @@ def generate_chapter_draft_ui(self):
                 embedding_retrieval_k=embedding_k,
                 interface_format=interface_format,
                 max_tokens=max_tokens,
-                timeout=timeout_val
+                timeout=timeout_val,
+                narrative_paradigm=self.narrative_paradigm_var.get().strip(),
+                style_profile=self.style_profile_var.get().strip(),
+                perspective_matrix=self.perspective_matrix_var.get().strip(),
+                scene_objectives=self.scene_objectives_var.get().strip(),
+                motif_budget=self.motif_budget_var.get().strip(),
+                hybrid_genre=self.hybrid_genre_var.get().strip(),
+                knowledge_injection_policy=self.knowledge_injection_policy_var.get().strip(),
+                seed=self.seed_var.get().strip(),
+                variation_factor=self.variation_factor_var.get().strip()
             )
 
             # 弹出可编辑提示词对话框，等待用户确认或取消

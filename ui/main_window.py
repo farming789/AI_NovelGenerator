@@ -13,7 +13,7 @@ from llm_adapters import create_llm_adapter
 from config_manager import (
     load_config, save_config, test_llm_config, test_embedding_config,
     list_novel_projects, create_novel_project, load_novel_config, save_novel_config,
-    get_current_novel_config, migrate_legacy_config
+    get_current_novel_config
 )
 from utils import read_file, save_string_to_txt, clear_file_content
 from tooltips import tooltips
@@ -63,7 +63,7 @@ class NovelGeneratorGUI:
         self.current_novel_project = None
         self.current_novel_config = None
         
-        # 配置迁移将在UI创建后进行
+        # 配置迁移逻辑已移除
 
         if self.loaded_config:
             last_llm = next(iter(self.loaded_config["llm_configs"].values())).get("interface_format", "OpenAI")
@@ -162,6 +162,7 @@ class NovelGeneratorGUI:
             self.webdav_url_var = ctk.StringVar(value="")
             self.webdav_username_var = ctk.StringVar(value="")
             self.webdav_password_var = ctk.StringVar(value="")
+
         else:
             # 使用默认值
             self.topic_default = ""
@@ -182,6 +183,17 @@ class NovelGeneratorGUI:
             self.webdav_username_var = ctk.StringVar(value="")
             self.webdav_password_var = ctk.StringVar(value="")
 
+        # 额外设置（多样化）变量（统一初始化）
+        self.narrative_paradigm_var = ctk.StringVar(value="")
+        self.hybrid_genre_var = ctk.StringVar(value="")
+        self.style_profile_var = ctk.StringVar(value="")
+        self.perspective_matrix_var = ctk.StringVar(value="")
+        self.scene_objectives_var = ctk.StringVar(value="")
+        self.motif_budget_var = ctk.StringVar(value="")
+        self.knowledge_injection_policy_var = ctk.StringVar(value="")
+        self.seed_var = ctk.StringVar(value="")
+        self.variation_factor_var = ctk.StringVar(value="")
+
         # --------------- 整体Tab布局 ---------------
         self.tabview = ctk.CTkTabview(self.master)
         self.tabview.pack(fill="both", expand=True)
@@ -198,10 +210,7 @@ class NovelGeneratorGUI:
         build_config_tabview(self)  # 移到章节管理之后，作为独立的"软件设置"标签页
         build_other_settings_tab(self)
         
-        # UI创建完成后，先进行配置迁移，然后初始化小说项目
-        if "other_params" in self.loaded_config:
-            self.migrate_legacy_config()
-        
+        # UI创建完成后，初始化小说项目
         self.init_current_novel_project()
 
 
@@ -435,17 +444,6 @@ class NovelGeneratorGUI:
     
     # =============== 小说项目管理方法 ===============
     
-    def migrate_legacy_config(self):
-        """迁移旧配置到新结构"""
-        try:
-            self.log("检测到旧配置结构，正在迁移...")
-            self.loaded_config = migrate_legacy_config(self.loaded_config)
-            save_config(self.loaded_config, self.config_file)
-            self.log("✅ 配置迁移完成")
-        except Exception as e:
-            self.log(f"❌ 配置迁移失败: {str(e)}")
-            self.handle_exception("配置迁移")
-    
     def init_current_novel_project(self):
         """初始化当前小说项目"""
         try:
@@ -471,6 +469,8 @@ class NovelGeneratorGUI:
         manager_window.geometry("600x500")
         manager_window.transient(self.master)
         manager_window.grab_set()
+        # 保存窗口引用，便于切换项目后关闭
+        self._project_manager_window = manager_window
         
         # 主容器
         main_frame = ctk.CTkFrame(manager_window)
@@ -558,7 +558,7 @@ class NovelGeneratorGUI:
                 selected_project = projects[selection[0]]
                 
                 # 保存当前项目配置
-                self.save_current_novel_config()
+               # self.save_current_novel_config()
                 
                 # 切换到新项目
                 self.current_novel_project = selected_project["path"]
@@ -569,6 +569,13 @@ class NovelGeneratorGUI:
                 
                 self.log(f"✅ 已切换到项目: {selected_project['title']}")
                 self.refresh_projects_list()
+                # 关闭项目管理窗口
+                try:
+                    if hasattr(self, '_project_manager_window') and self._project_manager_window and self._project_manager_window.winfo_exists():
+                        self._project_manager_window.destroy()
+                        self._project_manager_window = None
+                except Exception:
+                    pass
                 
         except Exception as e:
             self.log(f"❌ 切换项目失败: {str(e)}")
@@ -649,7 +656,17 @@ class NovelGeneratorGUI:
                 "characters_involved": characters_involved_text,
                 "key_items": self.key_items_var.get(),
                 "scene_location": self.scene_location_var.get(),
-                "time_constraint": self.time_constraint_var.get()
+                "time_constraint": self.time_constraint_var.get(),
+                # 额外设置（多样化）
+                "narrative_paradigm": self.narrative_paradigm_var.get(),
+                "hybrid_genre": self.hybrid_genre_var.get(),
+                "style_profile": self.style_profile_var.get(),
+                "perspective_matrix": self.perspective_matrix_var.get(),
+                "scene_objectives": self.scene_objectives_var.get(),
+                "motif_budget": self.motif_budget_var.get(),
+                "knowledge_injection_policy": self.knowledge_injection_policy_var.get(),
+                "seed": self.seed_var.get(),
+                "variation_factor": self.variation_factor_var.get()
             })
             
             # 同步内存中的默认文本变量（用于后续界面显示）
@@ -685,7 +702,8 @@ class NovelGeneratorGUI:
             self.genre_var.set(op.get("genre", "玄幻"))
             self.num_chapters_var.set(str(op.get("num_chapters", 10)))
             self.word_number_var.set(str(op.get("word_number", 3000)))
-            self.filepath_var.set(op.get("filepath", ""))
+            # 文件路径缺失时回退为当前项目路径
+            self.filepath_var.set(op.get("filepath", self.current_novel_project or ""))
             self.chapter_num_var.set(str(self.current_novel_config.get("generation_state", {}).get("current_chapter", 1)))
             self.characters_involved_var.set(op.get("characters_involved", ""))
             self.key_items_var.set(op.get("key_items", ""))
@@ -693,6 +711,16 @@ class NovelGeneratorGUI:
             self.time_constraint_var.set(op.get("time_constraint", ""))
             self.writing_style_var.set(op.get("writing_style", ""))
             self.user_guidance_default = op.get("user_guidance", "")
+            # 额外设置（多样化）回填
+            self.narrative_paradigm_var.set(op.get("narrative_paradigm", ""))
+            self.hybrid_genre_var.set(op.get("hybrid_genre", ""))
+            self.style_profile_var.set(op.get("style_profile", ""))
+            self.perspective_matrix_var.set(op.get("perspective_matrix", ""))
+            self.scene_objectives_var.set(op.get("scene_objectives", ""))
+            self.motif_budget_var.set(op.get("motif_budget", ""))
+            self.knowledge_injection_policy_var.set(op.get("knowledge_injection_policy", ""))
+            self.seed_var.set(op.get("seed", ""))
+            self.variation_factor_var.set(op.get("variation_factor", ""))
             
             # 更新文本框控件
             self.update_text_widgets()

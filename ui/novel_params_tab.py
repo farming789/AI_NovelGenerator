@@ -104,6 +104,59 @@ def build_novel_params_area(self, start_row=1):
     time_const_entry = ctk.CTkEntry(self.params_frame, textvariable=self.time_constraint_var, font=("Microsoft YaHei", 12))
     time_const_entry.grid(row=row_idx, column=1, padx=5, pady=5, sticky="ew")
 
+    # 9) 额外设置（多样化开关）
+    row_idx += 1
+    extra_frame = ctk.CTkFrame(self.params_frame)
+    extra_frame.grid(row=row_idx, column=0, columnspan=2, padx=5, pady=(10,5), sticky="nsew")
+    extra_frame.columnconfigure(1, weight=1)
+    title = ctk.CTkLabel(extra_frame, text="额外设置（可选，增强多样性）", font=("Microsoft YaHei", 12, "bold"))
+    title.grid(row=0, column=0, columnspan=2, padx=5, pady=(6,2), sticky="w")
+
+    # 叙事范式
+    create_label_with_help_for_novel_params(self, parent=extra_frame, label_text="叙事范式:", tooltip_key="narrative_paradigm", row=1, column=0, font=("Microsoft YaHei", 12))
+    entry_np = ctk.CTkEntry(extra_frame, textvariable=self.narrative_paradigm_var, font=("Microsoft YaHei", 12))
+    entry_np.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+
+    # 题材杂交
+    create_label_with_help_for_novel_params(self, parent=extra_frame, label_text="题材杂交:", tooltip_key="hybrid_genre", row=2, column=0, font=("Microsoft YaHei", 12))
+    entry_hg = ctk.CTkEntry(extra_frame, textvariable=self.hybrid_genre_var, font=("Microsoft YaHei", 12))
+    entry_hg.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+
+    # 风格剖面
+    create_label_with_help_for_novel_params(self, parent=extra_frame, label_text="风格剖面:", tooltip_key="style_profile", row=3, column=0, font=("Microsoft YaHei", 12))
+    entry_sp = ctk.CTkEntry(extra_frame, textvariable=self.style_profile_var, font=("Microsoft YaHei", 12))
+    entry_sp.grid(row=3, column=1, padx=5, pady=5, sticky="ew")
+
+    # 视角矩阵
+    create_label_with_help_for_novel_params(self, parent=extra_frame, label_text="视角矩阵:", tooltip_key="perspective_matrix", row=4, column=0, font=("Microsoft YaHei", 12))
+    entry_pm = ctk.CTkEntry(extra_frame, textvariable=self.perspective_matrix_var, font=("Microsoft YaHei", 12))
+    entry_pm.grid(row=4, column=1, padx=5, pady=5, sticky="ew")
+
+    # 场景目标
+    create_label_with_help_for_novel_params(self, parent=extra_frame, label_text="场景目标:", tooltip_key="scene_objectives", row=5, column=0, font=("Microsoft YaHei", 12))
+    entry_so = ctk.CTkEntry(extra_frame, textvariable=self.scene_objectives_var, font=("Microsoft YaHei", 12))
+    entry_so.grid(row=5, column=1, padx=5, pady=5, sticky="ew")
+
+    # 母题预算
+    create_label_with_help_for_novel_params(self, parent=extra_frame, label_text="母题预算:", tooltip_key="motif_budget", row=6, column=0, font=("Microsoft YaHei", 12))
+    entry_mb = ctk.CTkEntry(extra_frame, textvariable=self.motif_budget_var, font=("Microsoft YaHei", 12))
+    entry_mb.grid(row=6, column=1, padx=5, pady=5, sticky="ew")
+
+    # 知识注入比例
+    create_label_with_help_for_novel_params(self, parent=extra_frame, label_text="知识注入比例:", tooltip_key="knowledge_injection_policy", row=7, column=0, font=("Microsoft YaHei", 12))
+    entry_kp = ctk.CTkEntry(extra_frame, textvariable=self.knowledge_injection_policy_var, font=("Microsoft YaHei", 12))
+    entry_kp.grid(row=7, column=1, padx=5, pady=5, sticky="ew")
+
+    # seed
+    create_label_with_help_for_novel_params(self, parent=extra_frame, label_text="随机种子(seed):", tooltip_key="seed", row=8, column=0, font=("Microsoft YaHei", 12))
+    entry_seed = ctk.CTkEntry(extra_frame, textvariable=self.seed_var, font=("Microsoft YaHei", 12))
+    entry_seed.grid(row=8, column=1, padx=5, pady=5, sticky="ew")
+
+    # 变体因子
+    create_label_with_help_for_novel_params(self, parent=extra_frame, label_text="变体因子:", tooltip_key="variation_factor", row=9, column=0, font=("Microsoft YaHei", 12))
+    entry_vf = ctk.CTkEntry(extra_frame, textvariable=self.variation_factor_var, font=("Microsoft YaHei", 12))
+    entry_vf.grid(row=9, column=1, padx=5, pady=5, sticky="ew")
+
 def build_optional_buttons_area(self, start_row=2):
     self.optional_btn_frame = ctk.CTkFrame(self.right_frame)
     self.optional_btn_frame.grid(row=start_row, column=0, sticky="ew", padx=5, pady=5)

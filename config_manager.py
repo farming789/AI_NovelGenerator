@@ -310,56 +310,7 @@ def delete_novel_project(project_name: str) -> bool:
         return False
 
 
-def migrate_legacy_config(global_config: dict) -> dict:
-    """迁移旧配置到新结构"""
-    if "other_params" not in global_config:
-        return global_config
-    
-    # 提取小说参数
-    other_params = global_config["other_params"]
-    
-    # 创建默认小说项目
-    project_name = "默认小说项目"
-    try:
-        project_path = create_novel_project(project_name, global_config)
-        
-        # 加载新创建的项目配置
-        novel_config = load_novel_config(project_path)
-        
-        # 迁移参数
-        novel_config["novel_params"].update({
-            "topic": other_params.get("topic", ""),
-            "genre": other_params.get("genre", "玄幻"),
-            "num_chapters": other_params.get("num_chapters", 100),
-            "word_number": other_params.get("word_number", 3000),
-            "writing_style": other_params.get("writing_style", ""),
-            "user_guidance": other_params.get("user_guidance", ""),
-            "characters_involved": other_params.get("characters_involved", ""),
-            "key_items": other_params.get("key_items", ""),
-            "scene_location": other_params.get("scene_location", ""),
-            "time_constraint": other_params.get("time_constraint", ""),
-            "filepath": other_params.get("filepath", project_path)
-        })
-        
-        # 迁移生成状态
-        chapter_num = other_params.get("chapter_num", "1")
-        try:
-            novel_config["generation_state"]["current_chapter"] = int(chapter_num)
-        except:
-            novel_config["generation_state"]["current_chapter"] = 1
-        
-        # 保存迁移后的配置
-        save_novel_config(project_path, novel_config)
-        
-        # 从全局配置中移除 other_params
-        new_global_config = global_config.copy()
-        del new_global_config["other_params"]
-        
-        return new_global_config
-        
-    except Exception as e:
-        print(f"迁移配置时出错: {str(e)}")
-        return global_config
+# 迁移逻辑不再需要，已移除 migrate_legacy_config
 
 
 def get_current_novel_config(project_path: str) -> dict:
@@ -374,6 +325,10 @@ def get_current_novel_config(project_path: str) -> dict:
             novels_dir = ensure_novels_dir()
             global_config_file = os.path.join(os.getcwd(), "config.json")
             global_config = load_config(global_config_file)
-            project_path = create_novel_project("默认小说项目", global_config)
+            default_path = os.path.join(novels_dir, "默认小说项目")
+            if os.path.exists(default_path):
+                project_path = default_path
+            else:
+                project_path = create_novel_project("默认小说项目", global_config)
     
     return load_novel_config(project_path)

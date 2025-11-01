@@ -741,6 +741,16 @@ def load_config_btn(self):
         self.key_items_var.set(other_params.get("key_items", ""))
         self.scene_location_var.set(other_params.get("scene_location", ""))
         self.time_constraint_var.set(other_params.get("time_constraint", ""))
+        # 额外设置（多样化）回填
+        self.narrative_paradigm_var.set(other_params.get("narrative_paradigm", ""))
+        self.hybrid_genre_var.set(other_params.get("hybrid_genre", ""))
+        self.style_profile_var.set(other_params.get("style_profile", ""))
+        self.perspective_matrix_var.set(other_params.get("perspective_matrix", ""))
+        self.scene_objectives_var.set(other_params.get("scene_objectives", ""))
+        self.motif_budget_var.set(other_params.get("motif_budget", ""))
+        self.knowledge_injection_policy_var.set(other_params.get("knowledge_injection_policy", ""))
+        self.seed_var.set(other_params.get("seed", ""))
+        self.variation_factor_var.set(other_params.get("variation_factor", ""))
         self.log("已加载配置。")
     else:
         messagebox.showwarning("提示", "未找到或无法读取配置文件。")
@@ -779,7 +789,17 @@ def save_config_btn(self):
         "time_constraint": self.time_constraint_var.get(),
         "webdav_url": self.webdav_url_var.get(),
         "webdav_username": self.webdav_username_var.get(),
-        "webdav_password": self.webdav_password_var.get()
+        "webdav_password": self.webdav_password_var.get(),
+        # 额外设置（多样化）
+        "narrative_paradigm": self.narrative_paradigm_var.get(),
+        "hybrid_genre": self.hybrid_genre_var.get(),
+        "style_profile": self.style_profile_var.get(),
+        "perspective_matrix": self.perspective_matrix_var.get(),
+        "scene_objectives": self.scene_objectives_var.get(),
+        "motif_budget": self.motif_budget_var.get(),
+        "knowledge_injection_policy": self.knowledge_injection_policy_var.get(),
+        "seed": self.seed_var.get(),
+        "variation_factor": self.variation_factor_var.get()
     }
     llm_config_name = self.base_url_var.get().split("/")[2] + " " + self.model_name_var.get()
 

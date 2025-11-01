@@ -58,7 +58,16 @@ def Chapter_blueprint_generate(
     writing_style: str = "",  # 新增参数
     temperature: float = 0.7,
     max_tokens: int = 4096,
-    timeout: int = 600
+    timeout: int = 600,
+    # 可选多样化参数
+    narrative_paradigm: str = "",
+    hybrid_genre: str = "",
+    style_profile: str = "",
+    perspective_matrix: str = "",
+    motif_budget: str = "",
+    cluster_strategy: str = "",
+    seed: str = "",
+    variation_factor: str = ""
 ) -> None:
     """
     若 Novel_directory.txt 已存在且内容非空，则表示可能是之前的部分生成结果；
@@ -116,7 +125,15 @@ def Chapter_blueprint_generate(
                 n=current_start,
                 m=current_end,
                 user_guidance=user_guidance,  # 新增参数
-                writing_style=writing_style  # 新增参数
+                writing_style=writing_style,  # 新增参数
+                narrative_paradigm=narrative_paradigm or "",
+                hybrid_genre=hybrid_genre or "",
+                style_profile=style_profile or "",
+                perspective_matrix=perspective_matrix or "",
+                motif_budget=motif_budget or "",
+                cluster_strategy=cluster_strategy or "",
+                seed=seed or "",
+                variation_factor=variation_factor or ""
             )
             logging.info(f"Generating chapters [{current_start}..{current_end}] in a chunk...")
             chunk_result = invoke_with_cleaning(llm_adapter, chunk_prompt)
@@ -138,7 +155,15 @@ def Chapter_blueprint_generate(
             novel_architecture=architecture_text,
             number_of_chapters=number_of_chapters,
             user_guidance=user_guidance,  # 新增参数
-            writing_style=writing_style  # 新增参数
+            writing_style=writing_style,  # 新增参数
+            narrative_paradigm=narrative_paradigm or "",
+            hybrid_genre=hybrid_genre or "",
+            style_profile=style_profile or "",
+            perspective_matrix=perspective_matrix or "",
+            motif_budget=motif_budget or "",
+            cluster_strategy=cluster_strategy or "",
+            seed=seed or "",
+            variation_factor=variation_factor or ""
         )
         blueprint_text = invoke_with_cleaning(llm_adapter, prompt)
         if not blueprint_text.strip():
@@ -163,7 +188,15 @@ def Chapter_blueprint_generate(
             n=current_start,
             m=current_end,
             user_guidance=user_guidance,  # 新增参数
-            writing_style=writing_style  # 新增参数
+            writing_style=writing_style,  # 新增参数
+            narrative_paradigm=narrative_paradigm or "",
+            hybrid_genre=hybrid_genre or "",
+            style_profile=style_profile or "",
+            perspective_matrix=perspective_matrix or "",
+            motif_budget=motif_budget or "",
+            cluster_strategy=cluster_strategy or "",
+            seed=seed or "",
+            variation_factor=variation_factor or ""
         )
         logging.info(f"Generating chapters [{current_start}..{current_end}] in a chunk...")
         chunk_result = invoke_with_cleaning(llm_adapter, chunk_prompt)

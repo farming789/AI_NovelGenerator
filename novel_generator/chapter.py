@@ -296,7 +296,17 @@ def build_chapter_prompt(
     embedding_retrieval_k: int = 2,
     interface_format: str = "openai",
     max_tokens: int = 2048,
-    timeout: int = 600
+    timeout: int = 600,
+    # 可选多样化参数（若为空则在模板中被忽略）
+    narrative_paradigm: str = "",
+    style_profile: str = "",
+    perspective_matrix: str = "",
+    scene_objectives: str = "",
+    motif_budget: str = "",
+    hybrid_genre: str = "",
+    knowledge_injection_policy: str = "",
+    seed: str = "",
+    variation_factor: str = ""
 ) -> str:
     """
     构造当前章节的请求提示词（完整实现版）
@@ -357,7 +367,16 @@ def build_chapter_prompt(
             scene_location=scene_location,
             time_constraint=time_constraint,
             user_guidance=user_guidance,
-            novel_setting=novel_architecture_text
+            novel_setting=novel_architecture_text,
+            narrative_paradigm=narrative_paradigm or "",
+            style_profile=style_profile or "",
+            perspective_matrix=perspective_matrix or "",
+            scene_objectives=scene_objectives or "",
+            motif_budget=motif_budget or "",
+            hybrid_genre=hybrid_genre or "",
+            knowledge_injection_policy=knowledge_injection_policy or "",
+            seed=seed or "",
+            variation_factor=variation_factor or ""
         )
 
     # 获取前文内容和摘要
@@ -514,7 +533,16 @@ def build_chapter_prompt(
         next_chapter_foreshadowing=next_chapter_foreshadow,
         next_chapter_plot_twist_level=next_chapter_twist,
         next_chapter_summary=next_chapter_summary,
-        filtered_context=filtered_context
+        filtered_context=filtered_context,
+        narrative_paradigm=narrative_paradigm or "",
+        style_profile=style_profile or "",
+        perspective_matrix=perspective_matrix or "",
+        scene_objectives=scene_objectives or "",
+        motif_budget=motif_budget or "",
+        hybrid_genre=hybrid_genre or "",
+        knowledge_injection_policy=knowledge_injection_policy or "",
+        seed=seed or "",
+        variation_factor=variation_factor or ""
     )
 
 def generate_chapter_draft(
